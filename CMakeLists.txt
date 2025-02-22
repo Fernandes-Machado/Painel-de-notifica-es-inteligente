@@ -55,9 +55,12 @@ target_include_directories(Projeto_PainelInteligente PRIVATE
 
 # Add any user requested libraries
 target_link_libraries(Projeto_PainelInteligente 
-        hardware_pwm
-        pico_cyw43_arch_lwip_threadsafe_background        
-        )
+    pico_stdlib     # Biblioteca padrão da Raspberry Pi Pico
+    hardware_i2c    # Comunicação I2C para o display OLED
+    hardware_pwm    # Controle do buzzer via PWM
+    hardware_gpio   # Controle de GPIO para LEDs e botões
+    pico_cyw43_arch_lwip_threadsafe_background # Wi-Fi (CYW43)
+    )
 
 pico_add_extra_outputs(Projeto_PainelInteligente)
 

@@ -1,3 +1,5 @@
+// Ajustando duplicação de código e corrigindo a inclusão de bibliotecas
+
 #include <stdio.h>
 #include "pico/stdlib.h"
 #include "hardware/pwm.h"
@@ -18,7 +20,6 @@
 #define WIFI_SSID "Zandoni"  // Substitua pelo nome da sua rede Wi-Fi
 #define WIFI_PASS "Pipoca@2108" // Substitua pela senha da sua rede Wi-Fi
 
-
 // Buffer para resposta HTTP
 char http_response[1024];
 
@@ -26,10 +27,10 @@ char http_response[1024];
 char ultima_mensagem[256] = "";
 char ultima_categoria[50] = "Nenhuma";
 
-
+// Função para criar servidor de mensagens HTTP
 // Função para criar servidor de mensagens HTTP
 void create_http_response() {
-    snprintf (http_response, sizeof(http_response),
+    snprintf(http_response, sizeof(http_response),
              "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=UTF-8\r\n\r\n"
              "<!DOCTYPE html>"
              "<html lang=\"pt\">"
@@ -52,22 +53,32 @@ void create_http_response() {
              "    <p>Status: %s</p>"
              "    <input type=\"text\" id=\"mensagem\" placeholder=\"Digite sua mensagem...\">"
              "    <button onclick=\"enviarMensagem()\">Enviar</button>"
+             "    <p id=\"status\" style=\"color:green; font-weight:bold; display:none;\">Mensagem enviada!</p>"
              "  </div>"
              "  <script>"
              "    function enviarMensagem() {"
-             "      var msg = document.getElementById('mensagem').value;"
-             "      if(msg.trim() !== '') {"
-             "        fetch('/enviar?msg=' + encodeURIComponent(msg));"
-             "        alert('Mensagem enviada!');"
-             "        document.getElementById('mensagem').value = '';"
+             "      var msg = document.getElementById('mensagem').value.trim();"
+             "      var statusMsg = document.getElementById('status');"
+             "      if (msg !== '') {"
+             "        fetch('/enviar?msg=' + encodeURIComponent(msg))"
+             "          .then(response => {"
+             "            if(response.ok) {"
+             "              statusMsg.style.display = 'block';"
+             "              document.getElementById('mensagem').value = '';"
+             "              setTimeout(() => { statusMsg.style.display = 'none'; }, 3000);"
+             "            } else {"
+             "              alert('Erro ao enviar a mensagem!');"
+             "            }"
+             "          })"
+             "          .catch(error => alert('Erro de conexão!'));"
              "      } else {"
              "        alert('Por favor, digite uma mensagem!');"
              "      }"
              "    }"
-             "  </script></body></html>\r\n", 
-             //"Envie sua mensagem!"); //STATUS FIXO
+             "  </script></body></html>\r\n",
              ultima_mensagem, ultima_categoria);
 }
+
 
 // Função para tentar conectar ao Wi-Fi com tentativas
 int connect_wifi() {
@@ -85,12 +96,7 @@ int connect_wifi() {
     return 1; // Falhou após várias tentativas
 }
 
-
-
-    // -----------processa requisição HTTP
-  
-
-//*** Função para configurar os LEDs
+//* Função para configurar os LEDs
 void init_leds() {
     gpio_init(LED_RED);
     gpio_set_dir(LED_RED, GPIO_OUT);
@@ -98,22 +104,22 @@ void init_leds() {
 
     gpio_init(LED_BLUE);
     gpio_set_dir(LED_BLUE, GPIO_OUT);
-    gpio_put(LED_BLUE, RESET);  // LED vermelho apagado inicialmente
+    gpio_put(LED_BLUE, RESET);  // LED azul apagado inicialmente
 
     gpio_init(LED_GREEN);
     gpio_set_dir(LED_GREEN, GPIO_OUT);
     gpio_put(LED_GREEN, RESET);  // LED verde apagado inicialmente
 }
 
-//*** Função para piscar o LED vermelho
+//* Função para piscar o LED vermelho
 void piscar_led_vermelho() {
-        gpio_put(LED_RED, SET);
-        sleep_ms(500);
-        gpio_put(LED_RED, RESET);
-        sleep_ms(500);
+    gpio_put(LED_RED, SET);
+    sleep_ms(500);
+    gpio_put(LED_RED, RESET);
+    sleep_ms(500);
 }
 
-//*** Função para piscar o LED azul
+//* Função para piscar o LED azul
 void piscar_led_azul() {
     gpio_put(LED_BLUE, SET);
     sleep_ms(100);
@@ -121,7 +127,7 @@ void piscar_led_azul() {
     sleep_ms(100);
 }
 
-//*** Função para acender o LED verde
+//* Função para piscar o LED verde
 void piscar_led_verde() {
     gpio_put(LED_GREEN, SET);
     sleep_ms(100);
@@ -129,7 +135,7 @@ void piscar_led_verde() {
     sleep_ms(100);
 }
 
-//*** Função para iniciar o buzzer
+//* Função para iniciar o buzzer
 void init_buzzer() {
     gpio_init(BUZZER_PIN);
     gpio_set_dir(BUZZER_PIN, GPIO_OUT);
@@ -142,7 +148,7 @@ char* remover_acentos(char* str) {
     int i, j = 0;
     char *original = "áàãâäéèêëíìîïóòõôöúùûüçñÁÀÃÂÄÉÈÊËÍÌÎÏÓÒÕÔÖÚÙÛÜÇÑ";
     char *sem_acento = "aaaaaeeeeiiiiooooouuuucnAAAAAEEEEIIIIOOOOOUUUUCN";
-    
+
     for (i = 0; str[i] != '\0' && j < 255; i++) {
         char *pos = strchr(original, str[i]);
         if (pos) {
@@ -171,41 +177,38 @@ void normalizar_texto(char* str) {
 }
 
 // Função para analisar a categoria da mensagem
-const char* analisar_categoria (const char* mensagem) {
+const char* analisar_categoria(const char* mensagem) {
     static char mensagem_normalizada[256];
     strcpy(mensagem_normalizada, mensagem);
     normalizar_texto(mensagem_normalizada);
 
-// Palavras-chave para cada categoria
-// URGENTE (Alerta Vermelho)
-const char* prioridade_vermelha[] = {
-    "Emergência", "Socorro", "Acidente grave", "Morte", "Colapso", "Parada cardíaca",
-    "Perigo iminente", "Queimaduras graves", "Hemorragia", "Desmaio", "Fratura exposta", "Asfixia",
-    "Infarto", "Dano cerebral", "Trauma grave", "Afogamento", "Tentativa de homicídio", "Tortura",
-    "Suicídio", "Colapso respiratório", "Crise respiratória", "Pânico", "Vitima", "Colisão",
-    "Tiro", "Arma", "Desespero", "Envenenamento"
-};
+    // Palavras-chave para cada categoria
+    // URGENTE (Alerta Vermelho)
+    const char* prioridade_vermelha[] = {
+        "emergencia", "socorro", "acidente", "morte", "colapso", "parada cardiaca",
+        "perigo", "queimadura", "grave", "hemorragia", "desmaio", "fratura", "asfixia",
+        "infarto", "dano cerebral", "trauma", "afogamento", "homicidio", "suicidio", "tortura",
+        "respiratorio", "respiratoria", "panico", "vitima", "colisao",
+        "tiro", "arma", "desespero", "envenenamento"
+    };
 
-// ALERTA (Alerta Amarelo)
-const char* prioridade_amarela[] = {
-    "Risco potencial", "Queda de energia", "Queda de árvore", "Chuvas fortes", "Alagamento",
-    "Interrupção de serviços", "Bloqueio de estrada", "Acidente de trânsito", "Inundação",
-    "Atraso na resposta", "Ameaça de tempestade", "Fugas de gás", "Desabamento", "Vazamento de água",
-    "Falta de iluminação pública", "Aumento da violência na área", "Perda de sinal de comunicação",
-    "Risco de incêndio", "Queda de estrutura", "Perigo de contaminação"
-};
+    // ALERTA (Alerta Amarelo)
+    const char* prioridade_amarela[] = {
+        "risco", "queda de energia", "queda de arvore", "chuvas fortes", "tempestade", "alagamento",
+        "interrupcao de servicos", "bloqueio de estrada", "acidente de transito", "inundacao",
+        "ameaca de tempestade", "vazamento de gas", "desabamento", "vazamento de agua",
+        "falta de iluminacao", "risco de incendio", "queda de estrutura", "perigo de contaminacao"
+    };
 
-// NOTIFICAÇÃO (Alerta Verde)
-const char* prioridade_verde[] = {
-    "Informação", "Aviso de problema", "Atualização", "Relato", "Confirmação", "Feedback",
-    "Verificação", "Monitoramento", "Relato de situação", "Acompanhamento", "Denúncia (não urgente)",
-    "Relatório", "Solicitação de informação", "Observação", "Análise", "Notificação de horário",
-    "Registro", "Comunicação de falha", "Acompanhamento", "Revisão", "Relato de situação normal",
-    "Observação sobre segurança"
-};
+    // NOTIFICAÇÃO (Alerta Verde)
+    const char* prioridade_verde[] = {
+        "informacao", "aviso de problema", "atualizacao", "relato", "confirmacao", "feedback",
+        "verificacao", "monitoramento", "acompanhamento", "denuncia", "relatorio", 
+        "solicitacao de informacao", "observacao", "analise", "notificacao",
+        "registro", "comunicacao de falha", "acompanhamento", "revisao"
+    };
 
-
-// Verifica palavras-chave da categoria "URGENTE"
+    // Verifica palavras-chave da categoria "URGENTE"
     for (int i = 0; i < sizeof(prioridade_vermelha) / sizeof(prioridade_vermelha[0]); i++) {
         if (strstr(mensagem_normalizada, prioridade_vermelha[i]) != NULL) {
             for (int j = 0; j < 3; j++) {
@@ -218,8 +221,7 @@ const char* prioridade_verde[] = {
         }
     }
 
-
-// Verifica palavras-chave da categoria "ALERTA"
+    // Verifica palavras-chave da categoria "ALERTA"
     for (int i = 0; i < sizeof(prioridade_amarela) / sizeof(prioridade_amarela[0]); i++) {
         if (strstr(mensagem_normalizada, prioridade_amarela[i]) != NULL) {
             for (int j = 0; j < 3; j++) {
@@ -240,31 +242,7 @@ const char* prioridade_verde[] = {
     }
 
     return "SEM CATEGORIA";
-
-
-    // Verifica palavras-chave da categoria "ALERTA"
-    for (int i = 0; i < sizeof(prioridade_amarela) / sizeof(prioridade_amarela[0]); i++) {
-        if (strstr(mensagem, prioridade_amarela[i]) != NULL) {
-            for (int j = 0; j < 3; j++) {
-                piscar_led_azul();  // Pisca o LED azul 3x
-            }
-            return "ALERTA";
-        }
-    }
-    
-    // Verifica palavras-chave da categoria "NOTIFICAÇÃO"
-    for (int i = 0; i < sizeof(prioridade_verde) / sizeof(prioridade_verde[0]); i++) {
-        if (strstr(mensagem, prioridade_verde[i]) != NULL) {
-            for (int j = 0; j < 3; j++) {
-                piscar_led_verde();  // Pisca o LED verde 3x
-            }
-            return "NOTIFICAÇÃO";
-        }
-    }
-
-    return "SEM CATEGORIA";
 }
-
 
 // Função de callback para processar requisições HTTP
 static err_t http_callback(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err) {
@@ -274,21 +252,21 @@ static err_t http_callback(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_
         return ERR_OK;
     }
 
-// Processa a requisição HTTP - Processamento categoria da mensagem
-char *request = (char *)p->payload;
+    // Processa a requisição HTTP - Processamento categoria da mensagem
+    char *request = (char *)p->payload;
 
-if (strstr(request, "GET /enviar?msg=") != NULL) {
-    char *start = strstr(request, "msg=") + 4;
-    char *end = strstr(start, " ");
-    if (end) *end = '\0';
+    if (strstr(request, "GET /enviar?msg=") != NULL) {
+        char *start = strstr(request, "msg=") + 4;
+        char *end = strstr(start, " ");
+        if (end) *end = '\0';
 
-    strncpy(ultima_mensagem, start, sizeof(ultima_mensagem) - 1);
-    ultima_mensagem[sizeof(ultima_mensagem) - 1] = '\0';
+        strncpy(ultima_mensagem, start, sizeof(ultima_mensagem) - 1);
+        ultima_mensagem[sizeof(ultima_mensagem) - 1] = '\0';
 
-    // Classificar a mensagem
-    strncpy(ultima_categoria, analisar_categoria(ultima_mensagem), sizeof(ultima_categoria) - 1);
-    ultima_categoria[sizeof(ultima_categoria) - 1] = '\0';
-}
+        // Classificar a mensagem
+        strncpy(ultima_categoria, analisar_categoria(ultima_mensagem), sizeof(ultima_categoria) - 1);
+        ultima_categoria[sizeof(ultima_categoria) - 1] = '\0';
+    }
 
     // Atualiza o conteúdo da página com base no estado dos botões
     create_http_response();
@@ -299,7 +277,7 @@ if (strstr(request, "GET /enviar?msg=") != NULL) {
     // Libera o buffer recebido
     pbuf_free(p);
 
-return ERR_OK;
+    return ERR_OK;
 }
 
 // Callback de conexão: associa o http_callback à conexão
@@ -328,19 +306,13 @@ static void start_http_server(void) {
     printf("Servidor HTTP rodando na porta 80...\n");
 }
 
-
-//void stop_buzzer(uint buzzer_pin) {
-//    uint slice_num = pwm_gpio_to_slice_num(buzzer_pin);
-//    pwm_set_enabled(slice_num, false);
-//}
-
-//Loop principal
+// Loop principal
 int main()
 {
     stdio_init_all();
     init_leds();
     init_buzzer();
-        
+
     sleep_ms(10000);
     printf("Iniciando servidor HTTP\n");
 
@@ -356,24 +328,20 @@ int main()
     if (connect_wifi()) {
         printf("Falha ao conectar ao Wi-Fi após várias tentativas.\n");
         return 1;
-
-    
-    }else {
-        printf("Connected.\n");
-        // Read the ip address in a human readable way
-        uint8_t *ip_address = (uint8_t*)&(cyw43_state.netif[0].ip_addr.addr);
-        printf ("Endereço IP %d.%d.%d.%d\n", ip_address[0], ip_address[1], ip_address[2], ip_address[3]);
+    } else {
         printf("Wi-Fi conectado!\n");
-        
+         // Apresenta o endereço de IP do SERVIDOR
+        uint8_t *ip_address = (uint8_t*)&(cyw43_state.netif[0].ip_addr.addr);
+        printf("Endereço IP %d.%d.%d.%d\n", ip_address[0], ip_address[1], ip_address[2], ip_address[3]);
+        printf("Wi-Fi conectado!\n");
+
         // Inicia o servidor HTTP
         start_http_server();
     }
- 
+
     while (true) {
         cyw43_arch_poll();  // Necessário para manter o Wi-Fi ativo
         sleep_ms(100);
-    
-  
     }
     return 0;
 }
