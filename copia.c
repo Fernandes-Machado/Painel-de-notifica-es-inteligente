@@ -1,4 +1,4 @@
-//Incluindo bibliotecas
+//MÉTODO POST8************* fUNÇÃO CALLBACK e no código HTTP
 #include <stdio.h>
 #include "pico/stdlib.h"
 #include "hardware/pwm.h"
@@ -32,58 +32,67 @@ char ultima_categoria[50] = "Nenhuma";
 // Função para criar servidor de mensagens HTTP
 void create_http_response() {
     snprintf(http_response, sizeof(http_response),
-        "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=UTF-8\r\n\r\n"
-        "<!DOCTYPE html>"
-        "<html lang=\"pt\">"
-        "<head>"
-        "  <meta charset=\"UTF-8\">"
-        "  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">"
-        "  <title>Painel de Notificações - EmbarcaTech</title>"
-        "  <style>"
-        "    body { font-family: Arial, sans-serif; text-align: center; padding: 20px; background-color: #f4f4f4; }"
-        "    .container { max-width: 400px; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); margin: auto; }"
-        "    h1 { color: #333; }"
-        "    input, button { width: 100%%; padding: 10px; margin: 10px 0; border-radius: 5px; border: 1px solid #ddd; }"
-        "    button { background-color: #28a745; color: white; font-size: 16px; border: none; cursor: pointer; }"
-        "    button:hover { background-color: #218838; }"
-        "  </style>"
-        "</head>"
-        "<body>"
-        "  <div class=\"container\">"
-        "    <h1>Denúncias Anônimas</h1>"
-        "    <p>Status: %s</p>"
-        "    <input type=\"text\" id=\"mensagem\" placeholder=\"Digite sua mensagem...\">"
-        "    <button id=\"enviarMensagem()\">Enviar</button>"
-        "  </div>"
-        "  <script>"
-        "    function enviarMensagem() {"
-        "      var msg = document.getElementById('mensagem').value;"
-        "      if(msg.trim() !== '') {"
-        "        fetch('/enviar?msg=' + encodeURIComponent(msg))"
-        "          .then(response => {"
-        "            if (response.ok) {"
-        "              return response.text();"
-        "            } else {"
-        "              throw new Error('Erro na resposta do servidor');"
-        "            }"
-        "          })"
-        "          .then(data => {"
-        "            console.log('Resposta do servidor:', data);"
-        "            alert('Mensagem enviada!');"
-        "            document.getElementById('mensagem').value = '';"
-        "          })"
-        "          .catch(error => {"
-        "            console.error('Erro ao enviar a mensagem:', error);"
-        "            alert('Erro ao enviar a mensagem!');"
-        "          });"
-        "      } else {"
-        "        alert('Por favor, digite uma mensagem!');"
-        "      }"
-        "    }"
-        "  </script></body></html>\r\n",
-        ultima_mensagem, ultima_categoria);
-}
-                              
+             "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=UTF-8\r\n\r\n"
+             "<!DOCTYPE html>"
+             "<html lang=\"pt\">"
+             "<head>"
+             "  <meta charset=\"UTF-8\">"
+             "  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">"
+             "  <title>Painel de Notificações - EmbarcaTech</title>"
+             "  <style>"
+             "    body { font-family: Arial, sans-serif; text-align: center; padding: 60px; background-color: #f4f4f4; }"
+             "    .container { max-width: 400px; background: white; padding: 100px; border-radius: 10px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); margin: auto; }"
+             "    h1 { color: #333; }"
+             "    input, button { width: 100%%; padding: 10px; margin: 10px 0; border-radius: 5px; border: 1px solid #ddd; }"
+             "    button { background-color: #28a745; color: white; font-size: 16px; border: none; cursor: pointer; }"
+             "    button:hover { background-color: #218838; }"
+             "  </style>"
+             "</head>"
+             "<body>"
+             "  <div class=\"container\">"
+             "    <h1>Denúncias Anônimas</h1>"
+             "    <p>Status: %s</p>"
+             "     <form method=\"post\" action=\"/\">"
+            "            <textarea name=\"mensagem\" rows=\"4\" cols=\"50\"></textarea><br>"
+             "           <button id=\"btnEnviar\" type=\"submit\">Enviar</button>"
+             "     </form>"
+             "        <p id=\"status\" style=\"color:green; font-weight:bold; display:none;\">Mensagem enviada!</p>"
+             "        <p id=\"categoria\">Categoria: %s</p>"
+             "  </div>"
+             "  <script>"
+             "    window.onload = function() {"
+             "       var btnEnviar = document.getElementById('btnEnviar');"
+             "       if (btnEnviar){"
+             "          btnEnviar.addEventListener('click', function(event) {"
+             "             event.preventDefault(); // Impede o envio do formulário"
+             "             enviarMensagem();"
+             "       });"
+             "     }"
+             "  };"
+             "   function enviarMensagem() {"
+             "       var msg = document.getElementById('mensagem').value.trim();"
+             "       var statusMsg = document.getElementById('status');"
+             "       if (msg !== '') {"
+             "           fetch('/', {"
+             "               method: 'POST',"
+             "               body: new URLSearchParams({ mensagem: msg })"
+             "           })"
+             "           .then(response => response.text())"
+             "           .then(html => {"
+             "               document.open();"
+             "               document.write(html);"
+             "               document.close();"
+             "           })"
+             "           .catch(error => console.error('Erro de conexão:', error));"
+             "       } else {"
+             "           alert('Por favor, digite uma mensagem!');"
+             "        }"
+             "    }"
+             "  </script>"
+             "</body>"
+             "</html>\r\n",
+             ultima_mensagem, ultima_categoria); // Exibe a última mensagem
+             }                          
              
 
 // Função para tentar conectar ao Wi-Fi com tentativas
@@ -262,30 +271,30 @@ static err_t http_callback(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_
     printf("Requisição recebida:\n%s\n", (char *)p->payload);
     char *request = (char *)p->payload; // Processa a requisição HTTP - Processamento categoria da mensagem
 
-    // Se a requisição contém "/enviar?msg="
-    if (strstr(request, "GET /enviar?msg=") != NULL) {
-        char *start = strstr(request, "msg=") + 4;
-        char *end = strstr(start, " ");
-      
-        if (end){
-            *end = '\0';
-       }
-
-       // Verifica se a mensagem foi extraída corretamente
-       printf("Mensagem recebida (HTTP): %s\n", start);
-
-        strncpy(ultima_mensagem, start, sizeof(ultima_mensagem) - 1);
-        ultima_mensagem[sizeof(ultima_mensagem) - 1] = '\0';
-
-        // Classificar a mensagem e imprime categoria
-        strncpy(ultima_categoria, analisar_categoria(ultima_mensagem), sizeof(ultima_categoria) - 1);
-        ultima_categoria[sizeof(ultima_categoria) - 1] = '\0';
-        printf("Categoria atribuída (HTTP): %s\n", ultima_categoria);
+    // Extração da mensagem usando Método POST
+    if (strstr(request, "POST / HTTP/1.1") != NULL) {
+        char *content_length_header = strstr(request, "Content-Length: ");
+        if (content_length_header != NULL) {
+            int content_length = atoi(content_length_header + 16);
+            char *body_start = strstr(request, "\r\n\r\n") + 4;
+            if (body_start != NULL && strlen(body_start) >= content_length) {
+                char mensagem_recebida[256];
+                strncpy(mensagem_recebida, body_start, content_length);
+                mensagem_recebida[content_length] = '\0';
+                // Verifica se a mensagem foi extraída corretamente
+                printf("Mensagem recebida (POST): %s\n", mensagem_recebida);
+                // Atualiza a última mensagem
+                strncpy(ultima_mensagem, mensagem_recebida, sizeof(ultima_mensagem) - 1);
+                ultima_mensagem[sizeof(ultima_mensagem) - 1] = '\0';
+                strncpy(ultima_categoria, analisar_categoria(ultima_mensagem), sizeof(ultima_categoria) - 1);
+                ultima_categoria[sizeof(ultima_categoria) - 1] = '\0';
+                // Classificar a mensagem e imprime categoria
+                printf("Categoria atribuída (POST): %s\n", ultima_categoria);
+            }
+        }
     }
 
-    
-    create_http_response(); //atualiza status da página
-
+    create_http_response(); // Atualiza o HTML com a mensagem e categoria atuais
     // Envia a resposta HTTP
     tcp_write(tpcb, http_response, strlen(http_response), TCP_WRITE_FLAG_COPY);
     pbuf_free(p);     // Libera o buffer recebido
